@@ -535,261 +535,244 @@ class Simulador:
 # =====================================================================
 
 class IndividuoPG:
-    def __init__(self, profundidade=3):
+    def __init__(self, profundidade=4):
         self.profundidade = profundidade
-        self.arvore_aceleracao = self.criar_arvore_aleatoria()
-        self.arvore_rotacao = self.criar_arvore_aleatoria()
+        self.arvore_aceleracao = self.criar_arvore(self.profundidade)
+        self.arvore_rotacao = self.criar_arvore(self.profundidade)
         self.fitness = 0
-    
-    def criar_arvore_aleatoria(self):
-        if self.profundidade == 0:
+
+    def criar_arvore(self, profundidade):
+        if profundidade == 0:
             return self.criar_folha()
-        
-        # OPERADORES DISPONÍVEIS PARA O ALUNO MODIFICAR
-        operador = random.choice(['+', '-', '*', '/', 'max', 'min', 'abs', 'if_positivo', 'if_negativo'])
-        if operador in ['+', '-', '*', '/']:
+
+        operador = random.choice(['+', '-', '*', '/', 'max', 'min', 'abs', 'if'])
+        if operador in ['+', '-', '*', '/', 'max', 'min']:
             return {
                 'tipo': 'operador',
                 'operador': operador,
-                'esquerda': IndividuoPG(self.profundidade - 1).arvore_aceleracao,
-                'direita': IndividuoPG(self.profundidade - 1).arvore_aceleracao
-            }
-        elif operador in ['max', 'min']:
-            return {
-                'tipo': 'operador',
-                'operador': operador,
-                'esquerda': IndividuoPG(self.profundidade - 1).arvore_aceleracao,
-                'direita': IndividuoPG(self.profundidade - 1).arvore_aceleracao
+                'esquerda': self.criar_arvore(profundidade - 1),
+                'direita': self.criar_arvore(profundidade - 1)
             }
         elif operador == 'abs':
             return {
                 'tipo': 'operador',
                 'operador': operador,
-                'esquerda': IndividuoPG(self.profundidade - 1).arvore_aceleracao,
+                'esquerda': self.criar_arvore(profundidade - 1),
                 'direita': None
             }
-        else:  # if_positivo ou if_negativo
+        elif operador == 'if':
             return {
                 'tipo': 'operador',
-                'operador': operador,
-                'esquerda': IndividuoPG(self.profundidade - 1).arvore_aceleracao,
-                'direita': IndividuoPG(self.profundidade - 1).arvore_aceleracao
+                'operador': 'if',
+                'condicao': self.criar_arvore(profundidade - 1),
+                'verdadeiro': self.criar_arvore(profundidade - 1),
+                'falso': self.criar_arvore(profundidade - 1)
             }
-    
+
     def criar_folha(self):
-        # VARIÁVEIS DISPONÍVEIS PARA O ALUNO MODIFICAR
-        tipo = random.choice(['constante', 'dist_recurso', 'dist_obstaculo', 'dist_meta', 'angulo_recurso', 'angulo_meta', 'energia', 'velocidade', 'meta_atingida'])
-        if tipo == 'constante':
-            return {
-                'tipo': 'folha',
-                'valor': random.uniform(-5, 5)  # VALOR ALEATÓRIO PARA O ALUNO MODIFICAR
-            }
+        terminal = random.choice(['constante', 'dist_recurso', 'dist_obstaculo', 'dist_meta',
+                                  'angulo_recurso', 'angulo_meta', 'energia', 'velocidade', 'meta_atingida'])
+        if terminal == 'constante':
+            return {'tipo': 'folha', 'valor': random.uniform(-5, 5)}
         else:
-            return {
-                'tipo': 'folha',
-                'variavel': tipo
-            }
-    
+            return {'tipo': 'folha', 'variavel': terminal}
+
     def avaliar(self, sensores, tipo='aceleracao'):
         arvore = self.arvore_aceleracao if tipo == 'aceleracao' else self.arvore_rotacao
         return self.avaliar_no(arvore, sensores)
-    
+
     def avaliar_no(self, no, sensores):
-        if no is None:
-            return 0
-            
         if no['tipo'] == 'folha':
             if 'valor' in no:
                 return no['valor']
             elif 'variavel' in no:
                 return sensores[no['variavel']]
-        
-        if no['operador'] == 'abs':
+
+        op = no['operador']
+        if op == 'abs':
             return abs(self.avaliar_no(no['esquerda'], sensores))
-        elif no['operador'] == 'if_positivo':
-            valor = self.avaliar_no(no['esquerda'], sensores)
-            if valor > 0:
-                return self.avaliar_no(no['direita'], sensores)
+        if op == 'if':
+            cond = self.avaliar_no(no['condicao'], sensores)
+            if cond > 0:
+                return self.avaliar_no(no['verdadeiro'], sensores)
             else:
-                return 0
-        elif no['operador'] == 'if_negativo':
-            valor = self.avaliar_no(no['esquerda'], sensores)
-            if valor < 0:
-                return self.avaliar_no(no['direita'], sensores)
-            else:
-                return 0
-        
+                return self.avaliar_no(no['falso'], sensores)
+
         esquerda = self.avaliar_no(no['esquerda'], sensores)
-        direita = self.avaliar_no(no['direita'], sensores) if no['direita'] is not None else 0
-        
-        if no['operador'] == '+':
-            return esquerda + direita
-        elif no['operador'] == '-':
-            return esquerda - direita
-        elif no['operador'] == '*':
-            return esquerda * direita
-        elif no['operador'] == '/':
-            return esquerda / direita if direita != 0 else 0
-        elif no['operador'] == 'max':
-            return max(esquerda, direita)
-        else:  # min
-            return min(esquerda, direita)
-    
+        direita = self.avaliar_no(no['direita'], sensores) if no.get('direita') else 0
+
+        try:
+            if op == '+':
+                return esquerda + direita
+            if op == '-':
+                return esquerda - direita
+            if op == '*':
+                return esquerda * direita
+            if op == '/':
+                return esquerda / direita if direita != 0 else 0
+            if op == 'max':
+                return max(esquerda, direita)
+            if op == 'min':
+                return min(esquerda, direita)
+        except:
+            return 0
+
     def mutacao(self, probabilidade=0.1):
-        # PROBABILIDADE DE MUTAÇÃO PARA O ALUNO MODIFICAR
-        self.mutacao_no(self.arvore_aceleracao, probabilidade)
-        self.mutacao_no(self.arvore_rotacao, probabilidade)
-    
-    def mutacao_no(self, no, probabilidade):
+        self.arvore_aceleracao = self._mutacao_no(self.arvore_aceleracao, probabilidade)
+        self.arvore_rotacao = self._mutacao_no(self.arvore_rotacao, probabilidade)
+
+    def _mutacao_no(self, no, probabilidade):
         if random.random() < probabilidade:
-            if no['tipo'] == 'folha':
-                if 'valor' in no:
-                    no['valor'] = random.uniform(-5, 5)  # VALOR ALEATÓRIO PARA O ALUNO MODIFICAR
-                elif 'variavel' in no:
-                    no['variavel'] = random.choice(['dist_recurso', 'dist_obstaculo', 'dist_meta', 'angulo_recurso', 'angulo_meta', 'energia', 'velocidade', 'meta_atingida'])
-            else:
-                no['operador'] = random.choice(['+', '-', '*', '/', 'max', 'min', 'abs', 'if_positivo', 'if_negativo'])
-        
+            return self.criar_arvore(profundidade=2)
         if no['tipo'] == 'operador':
-            self.mutacao_no(no['esquerda'], probabilidade)
-            if no['direita'] is not None:
-                self.mutacao_no(no['direita'], probabilidade)
-    
+            if no['operador'] == 'if':
+                no['condicao'] = self._mutacao_no(no['condicao'], probabilidade)
+                no['verdadeiro'] = self._mutacao_no(no['verdadeiro'], probabilidade)
+                no['falso'] = self._mutacao_no(no['falso'], probabilidade)
+            else:
+                no['esquerda'] = self._mutacao_no(no['esquerda'], probabilidade)
+                if no.get('direita'):
+                    no['direita'] = self._mutacao_no(no['direita'], probabilidade)
+        return no
+
     def crossover(self, outro):
-        novo = IndividuoPG(self.profundidade)
-        novo.arvore_aceleracao = self.crossover_no(self.arvore_aceleracao, outro.arvore_aceleracao)
-        novo.arvore_rotacao = self.crossover_no(self.arvore_rotacao, outro.arvore_rotacao)
-        return novo
-    
-    def crossover_no(self, no1, no2):
-        # PROBABILIDADE DE CROSSOVER PARA O ALUNO MODIFICAR
-        if random.random() < 0.5:
-            return no1.copy()
-        else:
-            return no2.copy()
-    
+        filho = IndividuoPG(self.profundidade)
+        filho.arvore_aceleracao = self._crossover_no(self.arvore_aceleracao, outro.arvore_aceleracao)
+        filho.arvore_rotacao = self._crossover_no(self.arvore_rotacao, outro.arvore_rotacao)
+        return filho
+
+    def _crossover_no(self, no1, no2):
+        if no1['tipo'] == 'folha' or no2['tipo'] == 'folha':
+            return json.loads(json.dumps(random.choice([no1, no2])))
+
+        if no1['operador'] == 'if' and no2['operador'] == 'if':
+            return {
+                'tipo': 'operador',
+                'operador': 'if',
+                'condicao': self._crossover_no(no1['condicao'], no2['condicao']),
+                'verdadeiro': self._crossover_no(no1['verdadeiro'], no2['verdadeiro']),
+                'falso': self._crossover_no(no1['falso'], no2['falso'])
+            }
+
+        if no1['operador'] == 'abs' and no2['operador'] == 'abs':
+            return {
+                'tipo': 'operador',
+                'operador': 'abs',
+                'esquerda': self._crossover_no(no1['esquerda'], no2['esquerda']),
+                'direita': None
+            }
+
+        if no1['operador'] in ['+', '-', '*', '/', 'max', 'min'] and no2['operador'] in ['+', '-', '*', '/', 'max', 'min']:
+            return {
+                'tipo': 'operador',
+                'operador': random.choice([no1['operador'], no2['operador']]),
+                'esquerda': self._crossover_no(no1['esquerda'], no2['esquerda']),
+                'direita': self._crossover_no(no1['direita'], no2['direita'])
+            }
+
+        return json.loads(json.dumps(random.choice([no1, no2])))
+
     def salvar(self, arquivo):
         with open(arquivo, 'w') as f:
             json.dump({
                 'arvore_aceleracao': self.arvore_aceleracao,
                 'arvore_rotacao': self.arvore_rotacao
             }, f)
-    
+
     @classmethod
     def carregar(cls, arquivo):
         with open(arquivo, 'r') as f:
             dados = json.load(f)
-            individuo = cls()
-            individuo.arvore_aceleracao = dados['arvore_aceleracao']
-            individuo.arvore_rotacao = dados['arvore_rotacao']
-            return individuo
+        individuo = cls()
+        individuo.arvore_aceleracao = dados['arvore_aceleracao']
+        individuo.arvore_rotacao = dados['arvore_rotacao']
+        return individuo
+
+
 
 class ProgramacaoGenetica:
-    def __init__(self, tamanho_populacao=50, profundidade=3):
-        # PARÂMETROS PARA O ALUNO MODIFICAR
+    def __init__(self, tamanho_populacao=30, profundidade=4):
         self.tamanho_populacao = tamanho_populacao
         self.profundidade = profundidade
         self.populacao = [IndividuoPG(profundidade) for _ in range(tamanho_populacao)]
         self.melhor_individuo = None
         self.melhor_fitness = float('-inf')
         self.historico_fitness = []
-    
+
     def avaliar_populacao(self):
         ambiente = Ambiente()
         robo = Robo(ambiente.largura // 2, ambiente.altura // 2)
-        
+
         for individuo in self.populacao:
             fitness = 0
-            
-            # Simular 5 tentativas
-            for _ in range(5):
+
+            for _ in range(3):  # Quantidade de simulações por indivíduo (ajustável)
                 ambiente.reset()
                 robo.reset(ambiente.largura // 2, ambiente.altura // 2)
-                
+
                 while True:
-                    # Obter sensores
                     sensores = robo.get_sensores(ambiente)
-                    
-                    # Avaliar árvores de decisão
                     aceleracao = individuo.avaliar(sensores, 'aceleracao')
                     rotacao = individuo.avaliar(sensores, 'rotacao')
-                    
-                    # Limitar valores
+
                     aceleracao = max(-1, min(1, aceleracao))
                     rotacao = max(-0.5, min(0.5, rotacao))
-                    
-                    # Mover robô
+
                     sem_energia = robo.mover(aceleracao, rotacao, ambiente)
-                    
-                    # Verificar fim da simulação
+
                     if sem_energia or ambiente.passo():
                         break
-                
-                # Calcular fitness
+
                 fitness_tentativa = (
-                    robo.recursos_coletados * 100 +  # Pontos por recursos coletados
-                    robo.distancia_percorrida * 0.1 -  # Pontos por distância percorrida
-                    robo.colisoes * 50 -  # Penalidade por colisões
-                    (100 - robo.energia) * 0.5  # Penalidade por consumo de energia
+                    robo.recursos_coletados * 150 +      # Pontuação por recurso (aumentado)
+                    (500 if robo.meta_atingida else 0) + # Bônus por atingir a meta
+                    robo.energia * 2 -                   # Energia restante influencia
+                    robo.colisoes * 50 -                 # Penalização por colisões
+                    robo.distancia_percorrida * 0.05     # Penalização leve por distância
                 )
-                
-                # Adicionar pontos extras por atingir a meta
-                if robo.meta_atingida:
-                    fitness_tentativa += 500  # Pontos extras por atingir a meta
-                
+
                 fitness += max(0, fitness_tentativa)
-            
-            individuo.fitness = fitness / 5  # Média das 5 tentativas
-            
-            # Atualizar melhor indivíduo
+
+            individuo.fitness = fitness / 3  # Média das tentativas
+
             if individuo.fitness > self.melhor_fitness:
                 self.melhor_fitness = individuo.fitness
                 self.melhor_individuo = individuo
-    
+
     def selecionar(self):
-        # MÉTODO DE SELEÇÃO PARA O ALUNO MODIFICAR
-        # Seleção por torneio
-        tamanho_torneio = 3  # TAMANHO DO TORNEIO PARA O ALUNO MODIFICAR
+        tamanho_torneio = 3
         selecionados = []
-        
+
         for _ in range(self.tamanho_populacao):
             torneio = random.sample(self.populacao, tamanho_torneio)
             vencedor = max(torneio, key=lambda x: x.fitness)
             selecionados.append(vencedor)
-        
+
         return selecionados
-    
-    def evoluir(self, n_geracoes=50):
-        # NÚMERO DE GERAÇÕES PARA O ALUNO MODIFICAR
+
+    def evoluir(self, n_geracoes=20):
         for geracao in range(n_geracoes):
-            print(f"Geração {geracao + 1}/{n_geracoes}")
-            
-            # Avaliar população
+            print(f"\n🧬 Geração {geracao + 1}/{n_geracoes}")
+
             self.avaliar_populacao()
-            
-            # Registrar melhor fitness
+            print(f"✨ Melhor fitness da geração: {self.melhor_fitness:.2f}")
+
             self.historico_fitness.append(self.melhor_fitness)
-            print(f"Melhor fitness: {self.melhor_fitness:.2f}")
-            
-            # Selecionar indivíduos
+
             selecionados = self.selecionar()
-            
-            # Criar nova população
-            nova_populacao = []
-            
-            # Elitismo - manter o melhor indivíduo
-            nova_populacao.append(self.melhor_individuo)
-            
-            # Preencher o resto da população
+
+            nova_populacao = [self.melhor_individuo]  # Aplicando elitismo (mantém o melhor)
+
             while len(nova_populacao) < self.tamanho_populacao:
                 pai1, pai2 = random.sample(selecionados, 2)
                 filho = pai1.crossover(pai2)
-                filho.mutacao(probabilidade=0.1)  # PROBABILIDADE DE MUTAÇÃO PARA O ALUNO MODIFICAR
+                filho.mutacao(probabilidade=0.15)  # Taxa de mutação levemente aumentada
                 nova_populacao.append(filho)
-            
+
             self.populacao = nova_populacao
-        
+
         return self.melhor_individuo, self.historico_fitness
+
 
 # =====================================================================
 # PARTE 3: EXECUÇÃO DO PROGRAMA (PARA O ALUNO MODIFICAR)
