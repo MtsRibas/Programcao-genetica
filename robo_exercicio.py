@@ -533,8 +533,6 @@ class Simulador:
 # Esta parte contém a implementação do algoritmo genético.
 # Deve modificar os parâmetros e a lógica para melhorar o desempenho.
 # =====================================================================
-
-
 class IndividuoPG:
     def __init__(self, profundidade=5):
         self.profundidade = profundidade
@@ -587,7 +585,7 @@ class IndividuoPG:
             if 'valor' in no:
                 return no['valor']
             if 'variavel' in no:
-                return sensores[no['variavel']]
+                return sensores.get(no['variavel'], 0)
 
         op = no['operador']
         if op == 'abs':
@@ -676,7 +674,8 @@ class IndividuoPG:
         individuo.arvore_aceleracao = dados['arvore_aceleracao']
         individuo.arvore_rotacao = dados['arvore_rotacao']
         return individuo
-    
+
+
 class ProgramacaoGenetica:
     def __init__(self, tamanho_populacao=40, profundidade=5):
         self.tamanho_populacao = tamanho_populacao
@@ -714,16 +713,16 @@ class ProgramacaoGenetica:
                 recursos_nao_coletados = estado['recursos_restantes']
 
                 fitness_tentativa = (
-                    robo.recursos_coletados * 800 +
-                    (1000 if robo.meta_atingida else 0) +
-                    robo.energia * 2 +
-                    robo.distancia_percorrida * 1.2 -
-                    robo.colisoes * 150 -
-                    recursos_nao_coletados * 500
+                    robo.recursos_coletados * 1200 +  # Prioriza recursos
+                    (2000 if (robo.meta_atingida and recursos_nao_coletados == 0) else 0) +  # Só ganha bônus se coletou tudo
+                    robo.energia * 2 + 
+                    robo.distancia_percorrida * 0.2 - 
+                    robo.colisoes * 100 - 
+                    recursos_nao_coletados * 1500  # Forte penalização se não coletou tudo
                 )
 
                 if recursos_nao_coletados > 0 and robo.meta_atingida:
-                    fitness_tentativa -= 700
+                    fitness_tentativa -= 1000  # Penalidade severa
 
                 fitness += max(1, fitness_tentativa)
 
