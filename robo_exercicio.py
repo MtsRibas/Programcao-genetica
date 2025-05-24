@@ -779,7 +779,7 @@ if __name__ == "__main__":
     print("Treinando o algoritmo genético...")
     # PARÂMETROS PARA O ALUNO MODIFICAR
     pg = ProgramacaoGenetica(tamanho_populacao=20, profundidade=4)
-    melhor_individuo, historico = pg.evoluir(n_geracoes=5)
+    melhor_individuo, historico = pg.evoluir(n_geracoes=20)
     
     # Salvar o melhor indivíduo
     print("Salvando o melhor indivíduo...")
