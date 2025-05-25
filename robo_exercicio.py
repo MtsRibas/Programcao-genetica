@@ -564,7 +564,7 @@ class IndividuoPG:
         terminal = random.choices(
             ['dist_recurso', 'angulo_recurso', 'dist_meta', 'angulo_meta',
              'dist_obstaculo', 'energia', 'velocidade', 'meta_atingida', 'constante'],
-            weights=[10, 8, 6, 6, 12, 5, 5, 2, 3],
+            weights=[12, 10, 6, 6, 15, 5, 5, 2, 3],
             k=1
         )[0]
 
@@ -602,7 +602,7 @@ class IndividuoPG:
                 elif op == '*':
                     resultado = esquerda * direita
                 elif op == '/':
-                    resultado = esquerda / direita if direita != 0 else 0
+                    resultado = esquerda / direita if abs(direita) > 0.001 else 0
                 elif op == 'max':
                     resultado = max(esquerda, direita)
                 elif op == 'min':
@@ -676,8 +676,9 @@ class IndividuoPG:
         return individuo
 
 
+
 class ProgramacaoGenetica:
-    def __init__(self, tamanho_populacao=40, profundidade=5):
+    def __init__(self, tamanho_populacao=30, profundidade=5):
         self.tamanho_populacao = tamanho_populacao
         self.profundidade = profundidade
         self.populacao = [IndividuoPG(profundidade) for _ in range(tamanho_populacao)]
@@ -713,16 +714,16 @@ class ProgramacaoGenetica:
                 recursos_nao_coletados = estado['recursos_restantes']
 
                 fitness_tentativa = (
-                    robo.recursos_coletados * 1200 +  # Prioriza recursos
-                    (2000 if (robo.meta_atingida and recursos_nao_coletados == 0) else 0) +  # Só ganha bônus se coletou tudo
-                    robo.energia * 2 + 
-                    robo.distancia_percorrida * 0.2 - 
-                    robo.colisoes * 100 - 
-                    recursos_nao_coletados * 1500  # Forte penalização se não coletou tudo
+                    robo.recursos_coletados * 1500 +
+                    (2500 if (robo.meta_atingida and recursos_nao_coletados == 0) else 0) +
+                    robo.energia * 2 +
+                    robo.distancia_percorrida * 0.5 -
+                    robo.colisoes * 1200 -  # 🔥 Penalização muito mais forte para colisões
+                    recursos_nao_coletados * 1500
                 )
 
                 if recursos_nao_coletados > 0 and robo.meta_atingida:
-                    fitness_tentativa -= 1000  # Penalidade severa
+                    fitness_tentativa -= 1200  # 🔥 Penalidade por atingir meta sem pegar tudo
 
                 fitness += max(1, fitness_tentativa)
 
@@ -743,7 +744,7 @@ class ProgramacaoGenetica:
 
         return selecionados
 
-    def evoluir(self, n_geracoes=10):
+    def evoluir(self, n_geracoes=20):
         for geracao in range(n_geracoes):
             print(f"\n🧬 Geração {geracao + 1}/{n_geracoes}")
             self.avaliar_populacao()
@@ -753,7 +754,7 @@ class ProgramacaoGenetica:
 
             selecionados = self.selecionar()
 
-            nova_populacao = [self.melhor_individuo]
+            nova_populacao = [self.melhor_individuo]  # Elitismo
 
             while len(nova_populacao) < self.tamanho_populacao:
                 pai1, pai2 = random.sample(selecionados, 2)
@@ -778,8 +779,8 @@ if __name__ == "__main__":
     # Criar e treinar o algoritmo genético
     print("Treinando o algoritmo genético...")
     # PARÂMETROS PARA O ALUNO MODIFICAR
-    pg = ProgramacaoGenetica(tamanho_populacao=20, profundidade=4)
-    melhor_individuo, historico = pg.evoluir(n_geracoes=20)
+    pg = ProgramacaoGenetica(tamanho_populacao=40, profundidade=5)
+    melhor_individuo, historico = pg.evoluir(n_geracoes=30)
     
     # Salvar o melhor indivíduo
     print("Salvando o melhor indivíduo...")
